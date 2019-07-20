@@ -1,0 +1,101 @@
+---
+title: "Week4 Project"
+author: "Takitaka3"
+date: "July 20, 2019"
+output: html_document
+---
+
+
+#1. Introduction
+In this project, my goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants, and to predict the manner in which people did the exercise. The manner is the "classe" variable in the data set. I will describe how I built my model, how I used cross validation, what I think the expected out of sample error is, and why I made the choices I did. I will also use the prediction model to predict 20 different cases in the validation set.
+
+
+#2. Data Preparation
+First, I downloaded necessary library and data as below. 
+
+```{r}
+library(caret)
+library(randomForest)
+library(dplyr)
+set.seed(33833)
+validation <- read.csv("pml-testing.csv")
+data <- read.csv("pml-training.csv")
+```
+
+
+Then, I checked summary of the data. 
+
+```{r}
+summary(data)
+```
+
+
+Because some columns are filled by NAs, blank, or invalid values like "#DIV/0!", it is needed to remove those columns from the data set and validation set as the followings. 
+
+```{r}
+data <- mutate_all(data, funs(na_if(.,"#DIV/0!")))
+rm <- names(data[,colSums(is.na(data))==0])
+data1 <- data[,rm]
+rm1 <- rm[-60]
+validation1 <- validation[,rm1]
+```
+
+
+After that, I devided the data set into train set and test set.
+
+```{r}
+inTrain <-  createDataPartition(data1$classe, p = 3/4)[[1]]
+train <- data1[ inTrain,]
+test <- data1[ -inTrain,]
+```
+
+
+#3. Cross Validation
+I defined train control for k fold cross validation.
+
+```{r}
+train_control <- trainControl(method="cv", number=10)
+```
+
+
+#4. Model Development
+I developped random forest model as below. To avoid overfitting (to lower out of sample error) and to shorten computation time, the ntree is set 10. 
+
+```{r}
+rf <- randomForest(classe~., train, trControl=train_control, method="rf", ntree=10)
+```
+
+
+#5. Model Accuracy Check
+The estimated model accuracy by applying the model to the test set was 100%.
+
+```{r}
+rf_pred <- predict(rf, test)
+confusionMatrix(rf_pred, test$classe) 
+```
+
+
+#6. Preparation of the Validation Set
+To use the model for the validation set, the following preparation was necessary. 
+
+```{r}
+fixFrame <- head(train,1) #take first row of training set
+fixFrame <- fixFrame[, -length(colnames(fixFrame))] #remove last column (classe)
+validation2 <- rbind(fixFrame, validation1) #add first row of training set to validation set, it somehow make column class same as testing and training sets
+validation2 <- validation2[-1,] #remove first row we added previously
+```
+
+
+#7. Prediction of 20 different cases
+Finally, I use the model to the Validation Set as below.
+
+```{r}
+rf_val <- predict(rf, validation2)
+rf_val
+```
+
+
+
+
+
+
